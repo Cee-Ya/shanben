@@ -5,14 +5,17 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 )
 
-const downloadDir = "/volume1/other/book"           // 下载目录
+const downloadDir = "d:\\古籍"                        // 下载目录
 const baseUrl = "http://shanben.ioc.u-tokyo.ac.jp/" // 基础url
-const syb = "/"                                     // 如果是windows系统, 请使用"\\" 如果是linux系统, 请使用"/"
+const syb = "\\"                                    // 如果是windows系统, 请使用"\\" 如果是linux系统, 请使用"/"
+var useProxy = true                                 // 是否使用代理
+var proxy string                                    // 代理地址
 
 // 爬取http://shanben.ioc.u-tokyo.ac.jp/list.php的古籍到指定目录
 func main() {
@@ -49,9 +52,27 @@ func buildRequest(url string, method string, body io.Reader) *http.Request {
 	return req
 }
 
-func get(url string) *http.Response {
+func get(path string) *http.Response {
 	http.DefaultClient.Timeout = 30 * time.Second
-	req := buildRequest(url, "GET", nil)
+	if useProxy && proxy == "" {
+		// 控制台打印 请输入代理地址
+		fmt.Println("请输入本地代理地址(代理格式http://127.0.0.1:7890), 如果不需要代理, 请直接回车:")
+		_, err := fmt.Scanln(&proxy)
+		if err != nil {
+			useProxy = false
+			fmt.Println("未读取到代理地址, 将不使用代理")
+		}
+		// 设置代理
+		if proxy != "" {
+			http.DefaultClient.Transport = &http.Transport{
+				Proxy: func(request *http.Request) (*url.URL, error) {
+					return url.Parse(proxy)
+				},
+			}
+		}
+	}
+
+	req := buildRequest(path, "GET", nil)
 	response, err := http.DefaultClient.Do(req)
 	if err != nil {
 		panic(err)
